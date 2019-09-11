@@ -303,7 +303,7 @@ public class DefaultMessageStore implements MessageStore {
             log.info("[SetReputOffset] maxPhysicalPosInLogicQueue={} clMinOffset={} clMaxOffset={} clConfirmedOffset={}",
                 maxPhysicalPosInLogicQueue, this.commitLog.getMinOffset(), this.commitLog.getMaxOffset(), this.commitLog.getConfirmOffset());
             /**
-             * reputFromOffset汉仪是ReputMessageService从哪个物理偏移量开始转发消息给ConsumeQueue和IndexFile
+             * reputFromOffset含义是ReputMessageService从哪个物理偏移量开始转发消息给ConsumeQueue和IndexFile
              * 如果允许重复转发，reputFromOffset设置为CommitLog的提交指针
              * 如果不允许重复转发，reputFromOffset设置为CommitLog的内存中最大偏移量
              */
@@ -1186,6 +1186,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public ConsumeQueue findConsumeQueue(String topic, int queueId) {
+        // 根据topic获取对应的消费队列目录
         ConcurrentMap<Integer, ConsumeQueue> map = consumeQueueTable.get(topic);
         if (null == map) {
             ConcurrentMap<Integer, ConsumeQueue> newMap = new ConcurrentHashMap<Integer, ConsumeQueue>(128);
@@ -1197,6 +1198,7 @@ public class DefaultMessageStore implements MessageStore {
             }
         }
 
+        // 根据队列id获取到对应的消费队列
         ConsumeQueue logic = map.get(queueId);
         if (null == logic) {
             ConsumeQueue newLogic = new ConsumeQueue(
@@ -1482,6 +1484,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public void putMessagePositionInfo(DispatchRequest dispatchRequest) {
+        // 根据消息主题与队列id获取对应的ConsumeQueue文件
         ConsumeQueue cq = this.findConsumeQueue(dispatchRequest.getTopic(), dispatchRequest.getQueueId());
         cq.putMessagePositionInfoWrapper(dispatchRequest);
     }
@@ -1881,6 +1884,9 @@ public class DefaultMessageStore implements MessageStore {
                     break;
                 }
 
+                /**
+                 * 查找从reputFromOffset偏移量开始的全部有效数据，从commitlog中读取的
+                 */
                 SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
                 if (result != null) {
                     try {
