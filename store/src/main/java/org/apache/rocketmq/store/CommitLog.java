@@ -966,10 +966,21 @@ public class CommitLog {
         return diff;
     }
 
+    /**
+     * MappedFile落盘有两种方式：
+     * 1. 写入内存字节缓冲区（writeBuffer）
+     *          -> 从内存字节缓冲区（writeBuffer）提交（commit）到文件通道（fileChannel）
+     *                  ->文件通道flush
+     * 2. 写入映射文件字节缓冲区（mappedByteBuffer）—> 映射文件字节缓冲区flush
+     */
     abstract class FlushCommitLogService extends ServiceThread {
         protected static final int RETRY_TIMES_OVER = 10;
     }
 
+    /**
+     * 消息插入成功时，异步刷盘时使用，和FlushRealTimeService类似，对应commit操作
+     * 异步刷盘，并且开启内存字节缓冲区，性能最好
+     */
     class CommitRealTimeService extends FlushCommitLogService {
 
         private long lastCommitTimestamp = 0;
@@ -1023,7 +1034,14 @@ public class CommitLog {
         }
     }
 
+    /**
+     * 消息插入成功时，异步刷盘时使用，对应于flush操作
+     * 异步刷盘，关闭内存字节缓冲区，性能第二
+     */
     class FlushRealTimeService extends FlushCommitLogService {
+        /**
+         * 最后flush时间
+         */
         private long lastFlushTimestamp = 0;
         private long printTimes = 0;
 
@@ -1042,6 +1060,7 @@ public class CommitLog {
                 boolean printFlushProgress = false;
 
                 // Print flush progress
+                // 从上一次flush的时间到当前时间之间的间隔如果大于了flushPhysicQueueThoroughInterval指定时间，也需要刷盘
                 long currentTimeMillis = System.currentTimeMillis();
                 if (currentTimeMillis >= (this.lastFlushTimestamp + flushPhysicQueueThoroughInterval)) {
                     this.lastFlushTimestamp = currentTimeMillis;
@@ -1077,6 +1096,7 @@ public class CommitLog {
             }
 
             // Normal shutdown, to ensure that all the flush before exit
+            // broker关闭时，强制flush
             boolean result = false;
             for (int i = 0; i < RETRY_TIMES_OVER && !result; i++) {
                 result = CommitLog.this.mappedFileQueue.flush(0);
@@ -1135,9 +1155,13 @@ public class CommitLog {
 
     /**
      * GroupCommit Service
+     * 同步刷盘，性能最差
      */
     class GroupCommitService extends FlushCommitLogService {
+        // 写入请求队列
         private volatile List<GroupCommitRequest> requestsWrite = new ArrayList<GroupCommitRequest>();
+
+        // 读请求队列
         private volatile List<GroupCommitRequest> requestsRead = new ArrayList<GroupCommitRequest>();
 
         public synchronized void putRequest(final GroupCommitRequest request) {
