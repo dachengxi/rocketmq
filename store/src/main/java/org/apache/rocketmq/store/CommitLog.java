@@ -1287,6 +1287,7 @@ public class CommitLog {
             }
 
             // Transaction messages that require special handling
+            // 事务消息需要特殊处理
             final int tranType = MessageSysFlag.getTransactionValue(msgInner.getSysFlag());
             switch (tranType) {
                 // Prepared and Rollback message is not consumed, will not enter the
@@ -1303,6 +1304,7 @@ public class CommitLog {
 
             /**
              * Serialize message
+             * 获取消息中的属性，并且看下属性字段的长度是否超过了限制
              */
             final byte[] propertiesData =
                 msgInner.getPropertiesString() == null ? null : msgInner.getPropertiesString().getBytes(MessageDecoder.CHARSET_UTF8);
@@ -1314,9 +1316,11 @@ public class CommitLog {
                 return new AppendMessageResult(AppendMessageStatus.PROPERTIES_SIZE_EXCEEDED);
             }
 
+            // 获取topic数据
             final byte[] topicData = msgInner.getTopic().getBytes(MessageDecoder.CHARSET_UTF8);
             final int topicLength = topicData.length;
 
+            // 消息体的长度
             final int bodyLength = msgInner.getBody() == null ? 0 : msgInner.getBody().length;
 
             /**
@@ -1346,6 +1350,7 @@ public class CommitLog {
             final int msgLen = calMsgLength(bodyLength, topicLength, propertiesLength);
 
             // Exceeds the maximum message
+            // 消息长度超过限定值
             if (msgLen > this.maxMessageSize) {
                 CommitLog.log.warn("message size exceeded, msg total size: " + msgLen + ", msg body size: " + bodyLength
                     + ", maxMessageSize: " + this.maxMessageSize);
