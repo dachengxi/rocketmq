@@ -390,9 +390,12 @@ public class ConsumeQueue {
 
     public void putMessagePositionInfoWrapper(DispatchRequest request) {
         final int maxRetries = 30;
+        // ConsumeQueue是否可写
         boolean canWrite = this.defaultMessageStore.getRunningFlags().isCQWriteable();
         for (int i = 0; i < maxRetries && canWrite; i++) {
+            // 获取消息的tag
             long tagsCode = request.getTagsCode();
+            // 是否开启consumeQueueExt
             if (isExtWriteEnable()) {
                 ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
                 cqExtUnit.setFilterBitMap(request.getBitMap());
@@ -407,9 +410,11 @@ public class ConsumeQueue {
                         topic, queueId, request.getCommitLogOffset());
                 }
             }
+            // 添加到ConsumeQueue
             boolean result = this.putMessagePositionInfo(request.getCommitLogOffset(),
                 request.getMsgSize(), tagsCode, request.getConsumeQueueOffset());
             if (result) {
+                // 设置check point
                 this.defaultMessageStore.getStoreCheckpoint().setLogicsMsgTimestamp(request.getStoreTimestamp());
                 return;
             } else {
