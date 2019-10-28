@@ -1793,6 +1793,7 @@ public class DefaultMessageStore implements MessageStore {
         private long lastFlushTimestamp = 0;
 
         private void doFlush(int retryTimes) {
+            // consumequeue一次刷盘至少需要的脏页数量，默认2
             int flushConsumeQueueLeastPages = DefaultMessageStore.this.getMessageStoreConfig().getFlushConsumeQueueLeastPages();
 
             if (retryTimes == RETRY_TIMES_OVER) {
@@ -1801,6 +1802,7 @@ public class DefaultMessageStore implements MessageStore {
 
             long logicsMsgTimestamp = 0;
 
+            // 从上次刷盘到现在时间，如果已经超过了flushConsumeQueueThoroughInterval时间，就需要刷盘
             int flushConsumeQueueThoroughInterval = DefaultMessageStore.this.getMessageStoreConfig().getFlushConsumeQueueThoroughInterval();
             long currentTimeMillis = System.currentTimeMillis();
             if (currentTimeMillis >= (this.lastFlushTimestamp + flushConsumeQueueThoroughInterval)) {
@@ -1809,6 +1811,7 @@ public class DefaultMessageStore implements MessageStore {
                 logicsMsgTimestamp = DefaultMessageStore.this.getStoreCheckpoint().getLogicsMsgTimestamp();
             }
 
+            // 消息队列刷盘
             ConcurrentMap<String, ConcurrentMap<Integer, ConsumeQueue>> tables = DefaultMessageStore.this.consumeQueueTable;
 
             for (ConcurrentMap<Integer, ConsumeQueue> maps : tables.values()) {
@@ -1820,6 +1823,7 @@ public class DefaultMessageStore implements MessageStore {
                 }
             }
 
+            // check point 刷盘
             if (0 == flushConsumeQueueLeastPages) {
                 if (logicsMsgTimestamp > 0) {
                     DefaultMessageStore.this.getStoreCheckpoint().setLogicsMsgTimestamp(logicsMsgTimestamp);
@@ -1833,6 +1837,7 @@ public class DefaultMessageStore implements MessageStore {
 
             while (!this.isStopped()) {
                 try {
+                    // 刷新到ConsumeQueue的时间间隔，默认1s
                     int interval = DefaultMessageStore.this.getMessageStoreConfig().getFlushIntervalConsumeQueue();
                     this.waitForRunning(interval);
                     this.doFlush(1);
